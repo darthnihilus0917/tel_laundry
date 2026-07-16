@@ -104,7 +104,7 @@ export default function App() {
     <div className="min-h-screen w-full bg-slate-50 text-slate-900">
       <Nav tab={tab} setTab={setTab} onExitToCustomerView={() => setPortal("customer")} />
 
-      <div className="pb-20 pt-0 md:pb-0 md:pl-60">
+      <div className="pt-14 md:pt-0 md:pl-60">
         <div className="mx-auto max-w-6xl px-4 py-6">
           {tab === "dashboard" && <Dashboard orders={orders} complaints={complaints} customers={customers} setTab={setTab} />}
           {tab === "board" && (

@@ -1,3 +1,15 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Guard against any element (long unbroken text, a fixed-position child, etc.)
+   forcing horizontal scroll on the whole page — most noticeable on iOS Safari. */
+html,
+body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+#root {
+  overflow-x: hidden;
+}
