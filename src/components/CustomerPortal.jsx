@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Package, CheckCircle2, ShieldCheck, Clock, Truck, ArrowRight, LogIn } from "lucide-react";
+import { Package, CheckCircle2, ShieldCheck, Clock, Truck, ArrowRight, LogIn, Search } from "lucide-react";
 import { PACKAGE_PRICE } from "../data/seedData.js";
 
 const EMPTY_FORM = {
@@ -7,7 +7,7 @@ const EMPTY_FORM = {
   paymentMode: "Cash", defaultPackage: "Deluxe", consent: false,
 };
 
-export default function CustomerPortal({ customers, registerCustomer, onStaffLogin }) {
+export default function CustomerPortal({ customers, registerCustomer, onStaffLogin, onGoToAccount }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [errors, setErrors] = useState({});
   const [registered, setRegistered] = useState(null);
@@ -66,6 +66,28 @@ export default function CustomerPortal({ customers, registerCustomer, onStaffLog
       <div className="mx-auto max-w-3xl px-4 py-8 sm:py-12">
         {!registered ? (
           <>
+            <button
+              onClick={onGoToAccount}
+              className="flex w-full items-center justify-between gap-3 rounded-xl border-2 border-teal-600 bg-teal-50 px-4 py-4 text-left shadow-sm hover:bg-teal-100 sm:px-5 sm:py-5"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-teal-600 text-white">
+                  <Search size={20} />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold text-teal-900 sm:text-base">Already a customer?</div>
+                  <div className="text-xs text-teal-700 sm:text-sm">Tap here to check your laundry status or schedule a pickup</div>
+                </div>
+              </div>
+              <ArrowRight size={20} className="shrink-0 text-teal-600" />
+            </button>
+
+            <div className="my-6 flex items-center gap-3">
+              <div className="h-px flex-1 bg-slate-200" />
+              <span className="text-xs text-slate-400">or register below if you're new</span>
+              <div className="h-px flex-1 bg-slate-200" />
+            </div>
+
             <div className="text-center">
               <h1 className="text-2xl font-medium sm:text-3xl">Welcome to TEL Laundry</h1>
               <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
@@ -178,7 +200,9 @@ export default function CustomerPortal({ customers, registerCustomer, onStaffLog
               </button>
             </form>
 
-            <p className="mt-4 text-center text-xs text-slate-400">Already registered? Just message us on Text, Viber, or Messenger to request a pick-up.</p>
+            <p className="mt-4 text-center text-xs text-slate-400">
+              Already registered? <button onClick={onGoToAccount} className="text-teal-700 underline">Go to your account</button> to schedule a pickup or check status.
+            </p>
           </>
         ) : (
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-6 text-center sm:p-8">
@@ -187,8 +211,14 @@ export default function CustomerPortal({ customers, registerCustomer, onStaffLog
             </div>
             <h2 className="mt-3 text-lg font-medium text-emerald-800">You're registered, {registered.name.split(" ")[0]}!</h2>
             <p className="mx-auto mt-2 max-w-sm text-sm text-emerald-700">
-              We've saved your details. Next time you message us on Text, Viber, or Messenger to request a pick-up, we'll already have your address and preferences on hand.
+              We've saved your details. Head to your account anytime to schedule a pickup or check on your laundry's status.
             </p>
+            <button
+              onClick={onGoToAccount}
+              className="mt-4 flex items-center justify-center gap-1.5 rounded-md bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700"
+            >
+              Go to my account <ArrowRight size={14} />
+            </button>
             <button
               onClick={() => { setRegistered(null); setForm(EMPTY_FORM); }}
               className="mt-5 rounded-md border border-emerald-300 bg-white px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50"

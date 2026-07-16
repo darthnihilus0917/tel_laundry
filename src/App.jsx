@@ -10,6 +10,7 @@ import Payments from "./components/Payments.jsx";
 import Complaints from "./components/Complaints.jsx";
 import Toast from "./components/Toast.jsx";
 import CustomerPortal from "./components/CustomerPortal.jsx";
+import CustomerAccount from "./components/CustomerAccount.jsx";
 import { SEED_CUSTOMERS, SEED_ORDERS, SEED_COMPLAINTS } from "./data/seedData.js";
 import { nextStatus } from "./utils/helpers.js";
 
@@ -80,6 +81,19 @@ export default function App() {
         customers={customers}
         registerCustomer={registerCustomer}
         onStaffLogin={() => setPortal("admin")}
+        onGoToAccount={() => setPortal("account")}
+      />
+    );
+  }
+
+  if (portal === "account") {
+    return (
+      <CustomerAccount
+        customers={customers}
+        orders={orders}
+        addOrder={addOrder}
+        onStaffLogin={() => setPortal("admin")}
+        onGoToRegister={() => setPortal("customer")}
       />
     );
   }
