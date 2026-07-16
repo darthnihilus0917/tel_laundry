@@ -1,7 +1,11 @@
 import { useState } from "react";
-import { Package, Search, LogIn, ArrowLeft, Clock, MapPin, Camera, CheckCircle2, CalendarPlus, Wallet, MessageSquareWarning, Send } from "lucide-react";
+import {
+  Package, Search, LogIn, ArrowLeft, Clock, MapPin, Camera, CheckCircle2,
+  CalendarPlus, Wallet, MessageSquareWarning, Send, XCircle, Bike, Scale, CalendarClock,
+} from "lucide-react";
 import Badge from "./Badge.jsx";
-import { PACKAGE_PRICE } from "../data/seedData.js";
+import { PACKAGE_PRICE, RIDERS, CANCELLABLE_STATUSES } from "../data/seedData.js";
+import { personName } from "../utils/helpers.js";
 
 const CUSTOMER_STATUS_LABEL = {
   "New Request": "Received — awaiting rider assignment",
@@ -13,6 +17,7 @@ const CUSTOMER_STATUS_LABEL = {
   "Delivered": "Delivered",
   "Payment Verification": "Delivered — payment being verified",
   "Completed": "Completed",
+  "Cancelled": "Cancelled",
 };
 
 const CUSTOMER_STATUS_COLOR = {
@@ -25,6 +30,7 @@ const CUSTOMER_STATUS_COLOR = {
   "Delivered": "bg-emerald-50 text-emerald-700 border-emerald-300",
   "Payment Verification": "bg-purple-50 text-purple-700 border-purple-300",
   "Completed": "bg-emerald-100 text-emerald-800 border-emerald-400",
+  "Cancelled": "bg-slate-200 text-slate-500 border-slate-300",
 };
 
 const CUSTOMER_COMPLAINT_STATUS_LABEL = {
@@ -120,9 +126,19 @@ function ComplaintForm({ onSubmit, onCancel }) {
   );
 }
 
-function OrderCard({ order, orderComplaints, onFileComplaint }) {
+function DetailRow({ icon: Icon, children }) {
+  return (
+    <div className="flex items-start gap-1.5 text-xs text-slate-600">
+      <Icon size={13} className="mt-0.5 shrink-0 text-slate-400" />
+      <span>{children}</span>
+    </div>
+  );
+}
+
+function OrderCard({ order, customer, orderComplaints, onFileComplaint, onCancelOrder }) {
   const [showComplaintForm, setShowComplaintForm] = useState(false);
   const [justFiled, setJustFiled] = useState(false);
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
 
   function handleSubmit(message) {
     onFileComplaint(order.id, message);
@@ -131,8 +147,15 @@ function OrderCard({ order, orderComplaints, onFileComplaint }) {
     setTimeout(() => setJustFiled(false), 4000);
   }
 
+  const canCancel = CANCELLABLE_STATUSES.includes(order.status);
+  const paymentLabel =
+    order.paymentStatus === "Verified" ? "Paid" :
+    order.paymentStatus === "Pending Verification" ? "Payment being verified" :
+    "Payment due on handover";
+  const priceLabel = order.price ? `₱${order.price} — final` : `≈ ₱${PACKAGE_PRICE[order.package]} estimated`;
+
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm">
+    <div className={`rounded-xl border bg-white p-4 text-sm ${order.status === "Cancelled" ? "border-slate-200 opacity-70" : "border-slate-200"}`}>
       <div className="flex items-start justify-between gap-2">
         <div>
           <div className="font-medium">{order.id}</div>
@@ -140,21 +163,28 @@ function OrderCard({ order, orderComplaints, onFileComplaint }) {
         </div>
         <Badge className={CUSTOMER_STATUS_COLOR[order.status]}>{CUSTOMER_STATUS_LABEL[order.status]}</Badge>
       </div>
+
       <div className="mt-2 flex flex-wrap gap-1">
         <Badge className="bg-slate-100 text-slate-600 border-slate-200">{order.package}</Badge>
         <Badge className="bg-slate-100 text-slate-600 border-slate-200">{order.handover} handover</Badge>
         {order.delay && <Badge className="bg-amber-50 text-amber-700 border-amber-300">Running behind — next-day</Badge>}
       </div>
-      <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-500">
-        <span className="flex items-center gap-1"><Wallet size={12} />
-          {order.paymentStatus === "Verified" ? "Paid" : order.paymentStatus === "Pending Verification" ? "Payment being verified" : "Payment due on handover"}
-        </span>
+
+      {/* Full order detail */}
+      <div className="mt-3 space-y-1.5 border-t border-slate-100 pt-3">
+        <DetailRow icon={MapPin}>Pick-up at {customer.pickupAddr}</DetailRow>
+        {order.handover === "Lobby" && customer.deliveryAddr && customer.deliveryAddr !== customer.pickupAddr && (
+          <DetailRow icon={MapPin}>Delivery to {customer.deliveryAddr}</DetailRow>
+        )}
+        {order.preferredTime && <DetailRow icon={CalendarClock}>Preferred time: {order.preferredTime}</DetailRow>}
+        <DetailRow icon={Wallet}>{priceLabel} · {paymentLabel} · {order.paymentMethod}</DetailRow>
+        {order.weight != null && <DetailRow icon={Scale}>Weighed in at {order.weight}kg</DetailRow>}
+        {order.riderId && <DetailRow icon={Bike}>Rider: {personName(RIDERS, order.riderId)}</DetailRow>}
         {order.handover === "Lobby" && (
-          <span className="flex items-center gap-1">
-            <Camera size={12} /> {order.proofPhoto ? "Proof photo on file" : "Proof photo pending"}
-          </span>
+          <DetailRow icon={Camera}>{order.proofPhoto ? "Proof photo on file" : "Proof photo pending"}</DetailRow>
         )}
       </div>
+
       {order.delay?.reason && <div className="mt-2 rounded-md bg-amber-50 px-2.5 py-1.5 text-xs text-amber-700">{order.delay.reason}</div>}
 
       {orderComplaints.length > 0 && (
@@ -179,10 +209,38 @@ function OrderCard({ order, orderComplaints, onFileComplaint }) {
         </div>
       )}
 
+      {/* Cancel flow */}
+      {canCancel && (
+        confirmingCancel ? (
+          <div className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-rose-200 bg-rose-50 p-2.5 text-xs text-rose-700">
+            <span>Cancel this pickup request?</span>
+            <button
+              onClick={() => { onCancelOrder(order.id); setConfirmingCancel(false); }}
+              className="rounded-md bg-rose-600 px-2.5 py-1.5 font-medium text-white hover:bg-rose-700"
+            >
+              Yes, cancel it
+            </button>
+            <button
+              onClick={() => setConfirmingCancel(false)}
+              className="rounded-md border border-slate-200 bg-white px-2.5 py-1.5 font-medium text-slate-600 hover:bg-slate-50"
+            >
+              No, keep it
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setConfirmingCancel(true)}
+            className="mt-3 flex items-center gap-1.5 rounded-md border border-rose-200 px-2.5 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50"
+          >
+            <XCircle size={13} /> Cancel this pickup
+          </button>
+        )
+      )}
+
       {!showComplaintForm ? (
         <button
           onClick={() => setShowComplaintForm(true)}
-          className="mt-3 flex items-center gap-1.5 rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+          className="mt-2 flex items-center gap-1.5 rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
         >
           <MessageSquareWarning size={13} /> Report an issue with this order
         </button>
@@ -193,7 +251,7 @@ function OrderCard({ order, orderComplaints, onFileComplaint }) {
   );
 }
 
-export default function CustomerAccount({ customers, orders, addOrder, complaints, addComplaint, onStaffLogin, onGoToRegister }) {
+export default function CustomerAccount({ customers, orders, addOrder, cancelOrder, complaints, addComplaint, onStaffLogin, onGoToRegister }) {
   const [contactInput, setContactInput] = useState("");
   const [notFound, setNotFound] = useState(false);
   const [matchedCustomer, setMatchedCustomer] = useState(null);
@@ -217,7 +275,8 @@ export default function CustomerAccount({ customers, orders, addOrder, complaint
       customerId: matchedCustomer.id, status: "New Request", package: formValues.pkg, weight: null, price: null,
       handover: formValues.handover, channel: "App", riderId: null,
       proofPhoto: false, paymentStatus: "Unpaid", paymentMethod: matchedCustomer.paymentMode,
-      gcashRef: "", delay: null, createdAt: "Just now", notes: formValues.preferredTime ? `Preferred time: ${formValues.preferredTime}` : "",
+      gcashRef: "", delay: null, createdAt: "Just now", notes: "",
+      preferredTime: formValues.preferredTime || "",
     };
     addOrder(order, null);
     setShowSchedule(false);
@@ -333,8 +392,10 @@ export default function CustomerAccount({ customers, orders, addOrder, complaint
                   <OrderCard
                     key={o.id}
                     order={o}
+                    customer={matchedCustomer}
                     orderComplaints={myComplaints.filter((t) => t.orderId === o.id)}
                     onFileComplaint={fileComplaint}
+                    onCancelOrder={cancelOrder}
                   />
                 ))}
               </div>

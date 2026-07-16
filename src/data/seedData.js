@@ -32,7 +32,11 @@ export const STATUS_COLOR = {
   "Delivered": "bg-emerald-50 text-emerald-700 border-emerald-300",
   "Payment Verification": "bg-purple-50 text-purple-700 border-purple-300",
   "Completed": "bg-emerald-100 text-emerald-800 border-emerald-400",
+  "Cancelled": "bg-slate-200 text-slate-500 border-slate-300",
 };
+
+// A customer can only cancel a pickup before a rider has actually collected it.
+export const CANCELLABLE_STATUSES = ["New Request", "Assigned for Pickup"];
 
 export const SEED_CUSTOMERS = [
   { id: "c1", name: "Ana Reyes", contact: "0917 111 2222", pickupAddr: "Blk 4 Lot 2, Brgy. San Roque", deliveryAddr: "Same as pickup", paymentMode: "Cash", defaultPackage: "Deluxe" },

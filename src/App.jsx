@@ -52,6 +52,10 @@ export default function App() {
     setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, paymentStatus: "Verified" } : o)));
   }
 
+  function cancelOrder(orderId) {
+    setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status: "Cancelled", riderId: null } : o)));
+  }
+
   function addOrder(order, newCustomer) {
     if (newCustomer) setCustomers((prev) => [...prev, newCustomer]);
     setOrders((prev) => [order, ...prev]);
@@ -92,6 +96,7 @@ export default function App() {
         customers={customers}
         orders={orders}
         addOrder={addOrder}
+        cancelOrder={cancelOrder}
         complaints={complaints}
         addComplaint={addComplaint}
         onStaffLogin={() => setPortal("admin")}
@@ -105,7 +110,7 @@ export default function App() {
       <Nav tab={tab} setTab={setTab} onExitToCustomerView={() => setPortal("customer")} />
 
       <div className="pt-14 md:pt-0 md:pl-60">
-        <div className="mx-auto max-w-6xl px-4 py-6">
+        <div className={tab === "board" ? "px-4 py-6" : "mx-auto max-w-6xl px-4 py-6"}>
           {tab === "dashboard" && <Dashboard orders={orders} complaints={complaints} customers={customers} setTab={setTab} />}
           {tab === "board" && (
             <DispatchBoard orders={orders} customers={customers} advanceOrder={advanceOrder} assignRider={assignRider} />
