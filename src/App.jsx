@@ -92,6 +92,8 @@ export default function App() {
         customers={customers}
         orders={orders}
         addOrder={addOrder}
+        complaints={complaints}
+        addComplaint={addComplaint}
         onStaffLogin={() => setPortal("admin")}
         onGoToRegister={() => setPortal("customer")}
       />

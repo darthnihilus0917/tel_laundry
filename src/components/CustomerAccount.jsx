@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Package, Search, LogIn, ArrowLeft, Clock, MapPin, Camera, CheckCircle2, CalendarPlus, Wallet } from "lucide-react";
+import { Package, Search, LogIn, ArrowLeft, Clock, MapPin, Camera, CheckCircle2, CalendarPlus, Wallet, MessageSquareWarning, Send } from "lucide-react";
 import Badge from "./Badge.jsx";
 import { PACKAGE_PRICE } from "../data/seedData.js";
 
@@ -25,6 +25,18 @@ const CUSTOMER_STATUS_COLOR = {
   "Delivered": "bg-emerald-50 text-emerald-700 border-emerald-300",
   "Payment Verification": "bg-purple-50 text-purple-700 border-purple-300",
   "Completed": "bg-emerald-100 text-emerald-800 border-emerald-400",
+};
+
+const CUSTOMER_COMPLAINT_STATUS_LABEL = {
+  "Open": "Received — not yet reviewed",
+  "In Progress": "Being looked into",
+  "Resolved": "Resolved",
+};
+
+const CUSTOMER_COMPLAINT_STATUS_COLOR = {
+  "Open": "bg-rose-50 text-rose-700 border-rose-300",
+  "In Progress": "bg-amber-50 text-amber-700 border-amber-300",
+  "Resolved": "bg-emerald-50 text-emerald-700 border-emerald-300",
 };
 
 const SCHEDULE_FORM_DEFAULTS = { pkg: "Deluxe", handover: "Personal", preferredTime: "" };
@@ -80,7 +92,45 @@ function ScheduleForm({ customer, onSchedule, onCancel }) {
   );
 }
 
-function OrderCard({ order }) {
+function ComplaintForm({ onSubmit, onCancel }) {
+  const [message, setMessage] = useState("");
+  return (
+    <form
+      onSubmit={(e) => { e.preventDefault(); if (message.trim()) onSubmit(message.trim()); }}
+      className="mt-2 space-y-2 rounded-lg border border-rose-200 bg-rose-50/60 p-3"
+    >
+      <label className="text-xs font-medium text-rose-800">What's the issue?</label>
+      <textarea
+        required
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+        rows={2}
+        placeholder="e.g. It's been a day and I haven't heard back about my pickup"
+        className="w-full rounded-md border border-rose-200 px-2.5 py-2 text-sm"
+      />
+      <div className="flex gap-2">
+        <button type="submit" className="flex items-center gap-1 rounded-md bg-rose-600 px-3 py-2 text-xs font-medium text-white hover:bg-rose-700">
+          <Send size={12} /> Send to the shop
+        </button>
+        <button type="button" onClick={onCancel} className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50">
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function OrderCard({ order, orderComplaints, onFileComplaint }) {
+  const [showComplaintForm, setShowComplaintForm] = useState(false);
+  const [justFiled, setJustFiled] = useState(false);
+
+  function handleSubmit(message) {
+    onFileComplaint(order.id, message);
+    setShowComplaintForm(false);
+    setJustFiled(true);
+    setTimeout(() => setJustFiled(false), 4000);
+  }
+
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm">
       <div className="flex items-start justify-between gap-2">
@@ -106,11 +156,44 @@ function OrderCard({ order }) {
         )}
       </div>
       {order.delay?.reason && <div className="mt-2 rounded-md bg-amber-50 px-2.5 py-1.5 text-xs text-amber-700">{order.delay.reason}</div>}
+
+      {orderComplaints.length > 0 && (
+        <div className="mt-3 space-y-1.5 border-t border-slate-100 pt-3">
+          {orderComplaints.map((t) => (
+            <div key={t.id} className="rounded-md bg-slate-50 p-2.5 text-xs">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-medium text-slate-600">Your report: "{t.message}"</span>
+                <Badge className={CUSTOMER_COMPLAINT_STATUS_COLOR[t.status]}>{CUSTOMER_COMPLAINT_STATUS_LABEL[t.status]}</Badge>
+              </div>
+              {t.status === "Resolved" && t.response && (
+                <div className="mt-1.5 rounded bg-emerald-50 px-2 py-1.5 text-emerald-700">Shop's response: {t.response}</div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {justFiled && (
+        <div className="mt-3 flex items-center gap-1.5 rounded-md bg-emerald-50 px-2.5 py-2 text-xs text-emerald-700">
+          <CheckCircle2 size={13} /> Sent to the shop — we'll follow up on this order.
+        </div>
+      )}
+
+      {!showComplaintForm ? (
+        <button
+          onClick={() => setShowComplaintForm(true)}
+          className="mt-3 flex items-center gap-1.5 rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+        >
+          <MessageSquareWarning size={13} /> Report an issue with this order
+        </button>
+      ) : (
+        <ComplaintForm onSubmit={handleSubmit} onCancel={() => setShowComplaintForm(false)} />
+      )}
     </div>
   );
 }
 
-export default function CustomerAccount({ customers, orders, addOrder, onStaffLogin, onGoToRegister }) {
+export default function CustomerAccount({ customers, orders, addOrder, complaints, addComplaint, onStaffLogin, onGoToRegister }) {
   const [contactInput, setContactInput] = useState("");
   const [notFound, setNotFound] = useState(false);
   const [matchedCustomer, setMatchedCustomer] = useState(null);
@@ -142,7 +225,17 @@ export default function CustomerAccount({ customers, orders, addOrder, onStaffLo
     setTimeout(() => setJustScheduled(null), 4000);
   }
 
+  function fileComplaint(orderId, message) {
+    addComplaint({
+      id: "t" + Math.random().toString(36).slice(2, 6),
+      orderId, channel: "App", message,
+      status: "Open", assignedTo: null, response: "", createdAt: "Just now",
+    });
+  }
+
   const myOrders = matchedCustomer ? orders.filter((o) => o.customerId === matchedCustomer.id) : [];
+  const myOrderIds = new Set(myOrders.map((o) => o.id));
+  const myComplaints = complaints.filter((t) => myOrderIds.has(t.orderId));
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -237,7 +330,12 @@ export default function CustomerAccount({ customers, orders, addOrder, onStaffLo
                   </div>
                 )}
                 {myOrders.map((o) => (
-                  <OrderCard key={o.id} order={o} />
+                  <OrderCard
+                    key={o.id}
+                    order={o}
+                    orderComplaints={myComplaints.filter((t) => t.orderId === o.id)}
+                    onFileComplaint={fileComplaint}
+                  />
                 ))}
               </div>
             </div>
