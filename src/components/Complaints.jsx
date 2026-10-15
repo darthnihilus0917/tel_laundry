@@ -2,19 +2,22 @@ import { useState } from "react";
 import { Plus, X } from "lucide-react";
 import Badge from "./Badge.jsx";
 import { RIDERS, ATTENDANT } from "../data/seedData.js";
-import { personName } from "../utils/helpers.js";
+import { personName, ageHours, ageLabel } from "../utils/helpers.js";
 
-function ResolveForm({ onResolve }) {
+const SLA_HOURS = 4;
+
+// Posts a note on the ticket: either a progress update (stays In Progress) or a resolution.
+function NoteForm({ label, placeholder, tone, onSave }) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
 
   if (!open) {
-    return <button onClick={() => setOpen(true)} className="rounded-md bg-slate-800 px-2 py-1 text-xs font-medium text-white hover:bg-slate-900">Resolve</button>;
+    return <button onClick={() => setOpen(true)} className={`rounded-md px-2 py-1 text-xs font-medium text-white ${tone === "green" ? "bg-slate-800 hover:bg-slate-900" : "bg-amber-600 hover:bg-amber-700"}`}>{label}</button>;
   }
   return (
     <div className="flex w-full items-center gap-2">
-      <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Resolution note…" className="flex-1 rounded-md border border-slate-200 px-2 py-1 text-xs" />
-      <button onClick={() => text && onResolve(text)} className="rounded-md bg-emerald-600 px-2 py-1 text-xs font-medium text-white hover:bg-emerald-700">Save</button>
+      <input value={text} onChange={(e) => setText(e.target.value)} placeholder={placeholder} className="flex-1 rounded-md border border-slate-200 px-2 py-1 text-xs" />
+      <button onClick={() => { if (text.trim()) { onSave(text.trim()); setText(""); setOpen(false); } }} className="rounded-md bg-emerald-600 px-2 py-1 text-xs font-medium text-white hover:bg-emerald-700">Save</button>
       <button onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={14} /></button>
     </div>
   );
@@ -87,7 +90,15 @@ export default function Complaints({ complaints, orders, customers, addComplaint
                 }>{t.status}</Badge>
               </div>
               <div className="mt-1 text-slate-600">"{t.message}"</div>
-              <div className="mt-1 text-xs text-slate-400">{t.channel} · {t.createdAt}</div>
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                {t.channel} · {t.createdTs ? ageLabel(t.createdTs) : t.createdAt}
+                {t.status !== "Resolved" && ageHours(t.createdTs) > SLA_HOURS && (
+                  <Badge className="bg-rose-50 text-rose-700 border-rose-300">Overdue (&gt;{SLA_HOURS}h)</Badge>
+                )}
+              </div>
+              {t.status === "In Progress" && t.response && (
+                <div className="mt-2 rounded-md bg-amber-50 px-2.5 py-1.5 text-xs text-amber-700">Latest update: {t.response}</div>
+              )}
 
               {t.status !== "Resolved" && (
                 <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -105,8 +116,18 @@ export default function Complaints({ complaints, orders, customers, addComplaint
                   )}
                   {t.assignedTo && (
                     <>
-                      <span className="text-xs text-slate-500">Assigned: {personName([...RIDERS, ATTENDANT], t.assignedTo)}</span>
-                      <ResolveForm onResolve={(response) => updateComplaint(t.id, { status: "Resolved", response })} />
+                      <select
+                        value={t.assignedTo}
+                        onChange={(e) => updateComplaint(t.id, { assignedTo: e.target.value })}
+                        className="rounded-md border border-slate-200 px-2 py-1 text-xs"
+                        aria-label="Reassign ticket"
+                      >
+                        {[...RIDERS, ATTENDANT].map((p) => (
+                          <option key={p.id} value={p.id}>Assigned: {p.name}</option>
+                        ))}
+                      </select>
+                      <NoteForm label="Post update" placeholder="Status update for the customer…" tone="amber" onSave={(response) => updateComplaint(t.id, { response })} />
+                      <NoteForm label="Resolve" placeholder="Resolution note…" tone="green" onSave={(response) => updateComplaint(t.id, { status: "Resolved", response })} />
                     </>
                   )}
                 </div>
