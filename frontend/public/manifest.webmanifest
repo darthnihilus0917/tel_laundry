@@ -1,0 +1,9 @@
+{
+  "name": "The Empress Laundry",
+  "short_name": "Empress Laundry",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#0d9488",
+  "icons": [{ "src": "/gcash-qr.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

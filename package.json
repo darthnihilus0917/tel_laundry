@@ -1,23 +1,16 @@
 {
-  "name": "tel-laundry-ops",
+  "name": "tel-laundry",
   "private": true,
-  "version": "0.1.0",
-  "type": "module",
+  "description": "Workspace helpers only — frontend/ and backend/ each have their own package.json and node_modules.",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "lucide-react": "^0.383.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
-  },
-  "devDependencies": {
-    "@vitejs/plugin-react": "^4.2.1",
-    "autoprefixer": "^10.4.19",
-    "postcss": "^8.4.38",
-    "tailwindcss": "^3.4.3",
-    "vite": "^5.2.0"
+    "install:all": "npm --prefix frontend install && npm --prefix backend install",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:backend": "npm --prefix backend run dev",
+    "build:frontend": "npm --prefix frontend run build:prototype",
+    "db:migrate": "npm --prefix backend run db:migrate",
+    "db:seed": "npm --prefix backend run db:seed",
+    "test:backend": "npm --prefix backend test",
+    "test:e2e": "npm --prefix frontend run test:e2e",
+    "dev:frontend:api": "npm --prefix frontend run dev:api"
   }
 }

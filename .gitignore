@@ -1,3 +1,10 @@
 node_modules
 dist
 .DS_Store
+
+doc/
+
+test-results
+playwright-report
+
+.env

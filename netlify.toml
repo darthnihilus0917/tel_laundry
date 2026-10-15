@@ -1,0 +1,14 @@
+# Netlify deploys the prototype (no backend): sample data lives in each visitor's browser.
+[build]
+  base    = "frontend"
+  command = "npm run build:prototype"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Single-page app: always serve index.html (the staff area is entered via /#staff).
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200
