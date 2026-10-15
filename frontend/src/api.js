@@ -76,7 +76,7 @@ export const api = {
     };
   },
 
-  login: (contact, pin) => request("POST", "/customers/login", { contact, pin }).then(customerFromApi),
+  login: (email, pin) => request("POST", "/customers/login", { email, pin }).then(customerFromApi),
   createCustomer: (body) => request("POST", "/customers", body).then(customerFromApi),
   updateCustomer: (id, patch) => request("PATCH", `/customers/${id}`, patch).then(customerFromApi),
 

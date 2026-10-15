@@ -11,6 +11,18 @@ export function oneOf(value, allowed, field) {
   return value;
 }
 
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+// Returns the trimmed, lower-cased email, or null when omitted and optional.
+export function parseEmail(value, { required = false } = {}) {
+  const v = String(value ?? "").trim().toLowerCase();
+  if (!v) {
+    if (required) throw new HttpError(400, "email is required");
+    return null;
+  }
+  if (!EMAIL.test(v)) throw new HttpError(400, "email is not a valid address");
+  return v;
+}
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export function requireUuid(value, field) {
   if (!UUID.test(String(value ?? ""))) throw new HttpError(400, `${field} must be a valid id`);

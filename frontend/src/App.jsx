@@ -52,7 +52,23 @@ export default function App() {
   const [highlightId] = useState(initialHash.id);
   const [prefillCustomerId, setPrefillCustomerId] = useState(null);
   const [toastMessage, setToastMessage] = useState(null);
-  const [portal, setPortal] = useState(initialHash.staff ? "admin" : "customer"); // customer | account | admin
+  // Customer session survives a refresh (tab-scoped). The splash screen is the entry: customer | account | admin.
+  const [sessionCustomerId, setSessionCustomerId] = useState(() => {
+    try { return sessionStorage.getItem("tel.session") || null; } catch { return null; }
+  });
+  const [portal, setPortal] = useState(initialHash.staff ? "admin" : sessionCustomerId ? "account" : "customer");
+
+  function startSession(customer) {
+    try { sessionStorage.setItem("tel.session", customer.id); } catch { /* ignore */ }
+    setSessionCustomerId(customer.id);
+    setPortal("account");
+  }
+
+  function endSession() {
+    try { sessionStorage.removeItem("tel.session"); } catch { /* ignore */ }
+    setSessionCustomerId(null);
+    setPortal("customer");
+  }
 
   // Synchronous mirrors so two submits in the same tick can never be issued the same order ID.
   const ordersRef = useRef(orders);
@@ -320,7 +336,7 @@ export default function App() {
       putCustomer(customer); // optimistic: the registration screen shows it straight away
       run(api.createCustomer({
         id: customer.id, firstName: customer.firstName, lastName: customer.lastName, contact: customer.contact,
-        pin: customer.pin, address: customer.address, deliveryAddress: customer.deliveryAddress, area: customer.area,
+        email: customer.email || undefined, authProvider: customer.authProvider, pin: customer.pin || undefined, address: customer.address, deliveryAddress: customer.deliveryAddress, area: customer.area,
       })).then((saved) => {
         if (saved) putCustomer(saved);
       });
@@ -378,9 +394,9 @@ export default function App() {
   }
 
   // api mode: PINs are never sent to the browser, so sign-in is checked by the server.
-  async function signInViaApi(contact, pin) {
+  async function signInViaApi(email, pin) {
     try {
-      const c = await api.login(contact.trim(), pin);
+      const c = await api.login(email.trim(), pin);
       putCustomer(c);
       return c;
     } catch {
@@ -410,7 +426,10 @@ export default function App() {
   if (portal === "customer") {
     return (
       <>
-        <CustomerPortal customers={customers} registerCustomer={registerCustomer} onGoToAccount={() => setPortal("account")} />
+        <CustomerPortal
+          customers={customers} registerCustomer={registerCustomer}
+          onSignedIn={startSession} onSignIn={IS_API ? signInViaApi : undefined}
+        />
         <ModeBadge />
       </>
     );
@@ -428,9 +447,8 @@ export default function App() {
         complaints={complaints}
         addComplaint={addComplaint}
         updateCustomer={updateCustomer}
-        onGoToRegister={() => setPortal("customer")}
-        onBack={() => setPortal("customer")}
-        onSignIn={IS_API ? signInViaApi : undefined}
+        signedInCustomerId={sessionCustomerId}
+        onBack={endSession}
       />
       <ModeBadge />
       </>

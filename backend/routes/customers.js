@@ -4,7 +4,7 @@ import { promisify } from "node:util";
 import { query } from "../db/pool.js";
 import { DEFAULT_BRANCH, HttpError } from "../domain.js";
 import { customerOut } from "../serialize.js";
-import { parseAddress, requireText, requireUuid } from "../validate.js";
+import { parseAddress, parseEmail, requireText, requireUuid } from "../validate.js";
 
 const scrypt = promisify(scryptCb);
 const router = Router();
@@ -36,14 +36,18 @@ router.get("/", async (req, res) => {
   res.json(rows.map(customerOut));
 });
 
-// POST /api/customers/login {contact, pin} — customer app sign-in
+// POST /api/customers/login {email, pin} — customer app sign-in.
+// Google accounts have no PIN and cannot use this endpoint (Google sign-in needs server-side ID-token
+// verification, which is not set up yet — see backend/README.md).
 router.post("/login", async (req, res) => {
-  // Contact numbers are stored as typed ("0917 111 2222"); compare ignoring spaces.
-  const { rows } = await query(
-    "select * from customers where replace(contact, ' ', '') = $1 and branch_id = $2",
-    [String(req.body?.contact ?? "").replace(/\s/g, ""), DEFAULT_BRANCH]);
+  const email = String(req.body?.email ?? "").trim().toLowerCase();
+  const contact = String(req.body?.contact ?? "").replace(/\s/g, ""); // older clients / records without an email
+  if (!email && !contact) throw new HttpError(400, "email is required");
+  const { rows } = email
+    ? await query("select * from customers where lower(email) = $1 and branch_id = $2", [email, DEFAULT_BRANCH])
+    : await query("select * from customers where replace(contact, ' ', '') = $1 and branch_id = $2", [contact, DEFAULT_BRANCH]);
   if (!rows[0] || !(await pinMatches(req.body?.pin, rows[0].pin_hash))) {
-    throw new HttpError(401, "Contact number or PIN is incorrect");
+    throw new HttpError(401, "Email or PIN is incorrect");
   }
   res.json(customerOut(rows[0]));
 });
@@ -59,8 +63,8 @@ router.post("/", async (req, res) => {
   const address = parseAddress(b.address, "address");
   const deliveryAddress = parseAddress(b.deliveryAddress, "deliveryAddress", { required: false });
   const { rows } = await query(
-    `insert into customers (id, branch_id, first_name, last_name, contact, pin_hash, address, delivery_address, area)
-     values (coalesce($9, gen_random_uuid()),$1,$2,$3,$4,$5,$6,$7,$8) returning *`,
+    `insert into customers (id, branch_id, first_name, last_name, contact, pin_hash, address, delivery_address, area, email, auth_provider)
+     values (coalesce($9, gen_random_uuid()),$1,$2,$3,$4,$5,$6,$7,$8,$10,$11) returning *`,
     [
       DEFAULT_BRANCH,
       requireText(b.firstName, "firstName").toUpperCase(),
@@ -70,8 +74,14 @@ router.post("/", async (req, res) => {
       address, deliveryAddress,
       String(b.area ?? "").trim().toUpperCase() || address.subdivision,
       b.id ? requireUuid(b.id, "id") : null, // optional client-generated id so the browser can reference the record immediately
+      parseEmail(b.email),
+      b.authProvider === "google" ? "google" : "email",
     ]).catch((err) => {
-      if (err.code === "23505") throw new HttpError(409, "A customer with this contact number already exists");
+      if (err.code === "23505") {
+        throw new HttpError(409, /email/.test(err.constraint ?? err.message)
+          ? "A customer with this email already exists"
+          : "A customer with this contact number already exists");
+      }
       throw err;
     });
   res.status(201).json(customerOut(rows[0]));
@@ -85,6 +95,7 @@ router.patch("/:id", async (req, res) => {
   if (b.firstName !== undefined) add("first_name", requireText(b.firstName, "firstName").toUpperCase());
   if (b.lastName !== undefined) add("last_name", requireText(b.lastName, "lastName").toUpperCase());
   if (b.contact !== undefined) add("contact", requireText(b.contact, "contact"));
+  if (b.email !== undefined) add("email", parseEmail(b.email));
   if (b.address !== undefined) add("address", parseAddress(b.address, "address"));
   if (b.deliveryAddress !== undefined) add("delivery_address", parseAddress(b.deliveryAddress, "deliveryAddress", { required: false }));
   if (b.area !== undefined) add("area", String(b.area).trim().toUpperCase() || null);

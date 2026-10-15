@@ -50,7 +50,7 @@ npm test                      # API regression tests; needs the server running o
 | Method & path | Purpose |
 |---|---|
 | `GET /api/health` · `GET /api/staff?role=` · `GET /api/dashboard` | meta + owner exception queue |
-| `GET/POST /api/customers` · `GET/PATCH /api/customers/:id` · `POST /api/customers/login` | directory, PIN sign-in |
+| `GET/POST /api/customers` · `GET/PATCH /api/customers/:id` · `POST /api/customers/login` `{email, pin}` | directory, email + PIN sign-in |
 | `GET/POST /api/orders` · `GET /api/orders/:id` | list (FIFO, filters), create, detail + events |
 | `POST /api/orders/:id/assign` `{riderId}` | dispatch a rider |
 | `POST /api/orders/:id/advance` `{weightKg?, price?}` | next status, enforcing the gates below |
@@ -68,3 +68,11 @@ out for delivery; Delivered orders need a logged payment before verification; Co
 verified payment.
 
 Errors are `{ "error": "message" }` with 400 (validation), 401, 404, 409 (rule violated) or 500.
+
+## Customer sign-in
+
+Customers log in with an email and a 4-digit PIN (migration `002_customer_email.sql`; PINs are
+scrypt-hashed). **Google sign-in is not enabled in API mode**: it needs a Google client ID and
+server-side verification of the Google ID token before an email can be trusted, so
+`POST /api/customers/login` deliberately accepts PINs only. In prototype mode the Google button
+opens a demo account chooser.

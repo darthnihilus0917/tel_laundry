@@ -5,7 +5,7 @@ import { ADDRESS_FIELDS, EMPTY_ADDRESS, addressComplete, addressBlank } from "..
 import { DEFAULT_BRANCH } from "../data/seedData.js";
 
 const EMPTY_FORM = {
-  firstName: "", lastName: "", contact: "", pin: "",
+  firstName: "", lastName: "", contact: "", pin: "", email: "",
   address: EMPTY_ADDRESS, deliveryAddress: EMPTY_ADDRESS, consent: false,
 };
 
@@ -36,8 +36,14 @@ export function AddressBlock({ title, hint, value, onChange, errors = {}, idPref
 
 // One registration form for BOTH the customer's self-registration and the staff "Register a customer"
 // screen, so fields, rules and flow can never drift apart.
-export default function RegistrationForm({ customers, onRegistered, submitLabel = "Register" }) {
-  const [form, setForm] = useState(EMPTY_FORM);
+// `account` ({ email, pin, authProvider, firstName?, lastName? }) comes from the splash screen: the email and
+// PIN (or Google sign-in) were already collected, so those fields are not asked again.
+export default function RegistrationForm({ customers, onRegistered, submitLabel = "Register", account = null }) {
+  const [form, setForm] = useState({
+    ...EMPTY_FORM,
+    firstName: account?.firstName || "",
+    lastName: account?.lastName || "",
+  });
   const [errors, setErrors] = useState({});
 
   function validate() {
@@ -48,7 +54,12 @@ export default function RegistrationForm({ customers, onRegistered, submitLabel 
     else if (customers.some((c) => c.contact.replace(/\s/g, "") === form.contact.replace(/\s/g, ""))) {
       e.contact = "This number is already registered — the shop already has the details on file";
     }
-    if (!/^\d{4}$/.test(form.pin)) e.pin = "PIN must be exactly 4 digits";
+    if (!account) {
+      if (!/^\d{4}$/.test(form.pin)) e.pin = "PIN must be exactly 4 digits";
+      const em = form.email.trim().toLowerCase();
+      if (em && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)) e.email = "Enter a valid email address";
+      else if (em && customers.some((c) => c.email && c.email.toLowerCase() === em)) e.email = "This email is already registered";
+    }
     const addrErr = {};
     ADDRESS_FIELDS.filter((f) => f.required).forEach((f) => { if (!form.address[f.key].trim()) addrErr[f.key] = "Required"; });
     if (Object.keys(addrErr).length) e.address = addrErr;
@@ -72,7 +83,10 @@ export default function RegistrationForm({ customers, onRegistered, submitLabel 
       id: newCustomerId(),
       firstName: form.firstName.trim(), lastName: form.lastName.trim(),
       name: `${form.firstName.trim()} ${form.lastName.trim()}`,
-      contact: form.contact.trim(), pin: form.pin,
+      contact: form.contact.trim(),
+      email: account ? account.email.trim() : form.email.trim() || null,
+      authProvider: account?.authProvider || "email",
+      pin: account ? account.pin || "" : form.pin,
       address,
       deliveryAddress: addressBlank(form.deliveryAddress) ? null : clean(form.deliveryAddress),
       area: address.subdivision, branchId: DEFAULT_BRANCH, createdTs: Date.now(),
@@ -96,6 +110,23 @@ export default function RegistrationForm({ customers, onRegistered, submitLabel 
           {errors.lastName && <p className="mt-1 text-xs text-rose-600">{errors.lastName}</p>}
         </div>
       </div>
+
+      {account ? (
+        <p className="rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-600">
+          Signing up as <span className="font-medium text-slate-800">{account.email}</span>
+          {account.authProvider === "google" && " (Google)"}
+        </p>
+      ) : (
+        <div>
+          <label htmlFor="reg-email" className="text-xs font-medium text-slate-600">Email (optional)</label>
+          <input
+            id="reg-email" type="email" inputMode="email" value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            placeholder="name@gmail.com" className={inputCls(errors.email).replace("uppercase", "")}
+          />
+          {errors.email && <p className="mt-1 text-xs text-rose-600">{errors.email}</p>}
+        </div>
+      )}
 
       <div>
         <label htmlFor="reg-contact" className="text-xs font-medium text-slate-600">Contact number</label>
@@ -121,6 +152,7 @@ export default function RegistrationForm({ customers, onRegistered, submitLabel 
         idPrefix="reg-delivery"
       />
 
+      {!account && (
       <div>
         <label htmlFor="reg-pin" className="text-xs font-medium text-slate-600">4-digit PIN</label>
         <input
@@ -128,9 +160,10 @@ export default function RegistrationForm({ customers, onRegistered, submitLabel 
           value={form.pin} onChange={(e) => setForm({ ...form, pin: e.target.value.replace(/\D/g, "") })}
           placeholder="••••" className={inputCls(errors.pin).replace("uppercase", "") + " tracking-widest"}
         />
-        <p className="mt-1 text-xs text-slate-400">You'll use this with your contact number to sign in.</p>
+        <p className="mt-1 text-xs text-slate-400">The customer uses this with their email to log in.</p>
         {errors.pin && <p className="mt-1 text-xs text-rose-600">{errors.pin}</p>}
       </div>
+      )}
 
       <label className="flex items-start gap-2 text-xs text-slate-600">
         <input type="checkbox" checked={form.consent} onChange={(e) => setForm({ ...form, consent: e.target.checked })} className="mt-0.5" />

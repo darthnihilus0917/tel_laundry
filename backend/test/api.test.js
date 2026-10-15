@@ -25,7 +25,8 @@ const unique = () => String(Date.now()).slice(-8) + Math.floor(Math.random() * 9
 
 async function newCustomer(extra = {}) {
   const r = await post("/api/customers", {
-    firstName: "Test", lastName: "Customer", contact: `09${unique()}`, pin: "4321", address: ADDRESS, ...extra,
+    firstName: "Test", lastName: "Customer", contact: `09${unique()}`, email: `test.${unique()}@Example.com`,
+    pin: "4321", address: ADDRESS, ...extra,
   });
   assert.equal(r.status, 201, JSON.stringify(r.body));
   return r.body;
@@ -70,8 +71,24 @@ test("customers: create, validate, duplicate contact, lookup, PIN login", async 
   const found = await get(`/api/customers?q=${encodeURIComponent(c.contact)}`);
   assert.equal(found.body.length, 1);
 
-  assert.equal((await post("/api/customers/login", { contact: c.contact, pin: "4321" })).status, 200);
-  assert.equal((await post("/api/customers/login", { contact: c.contact, pin: "0000" })).status, 401);
+  assert.equal(c.email, c.email.toLowerCase(), "emails are stored lower-case");
+  assert.equal((await post("/api/customers/login", { email: c.email.toUpperCase(), pin: "4321" })).status, 200);
+  assert.equal((await post("/api/customers/login", { email: c.email, pin: "0000" })).status, 401);
+  assert.equal((await post("/api/customers/login", { email: "nobody@example.com", pin: "4321" })).status, 401);
+  assert.equal((await post("/api/customers/login", { pin: "4321" })).status, 400);
+
+  const dupEmail = await post("/api/customers", {
+    firstName: "A", lastName: "B", contact: `09${unique()}`, email: c.email.toUpperCase(), address: ADDRESS,
+  });
+  assert.equal(dupEmail.status, 409);
+  assert.equal((await post("/api/customers", {
+    firstName: "A", lastName: "B", contact: `09${unique()}`, email: "not-an-email", address: ADDRESS,
+  })).status, 400);
+
+  // Google-registered customers have no PIN and cannot log in with one
+  const g = await newCustomer({ authProvider: "google", pin: undefined, email: `g.${unique()}@gmail.com` });
+  assert.equal(g.authProvider, "google");
+  assert.equal((await post("/api/customers/login", { email: g.email, pin: "1234" })).status, 401);
 });
 
 test("order ids are TEL-MMDDYY-XXXX and strictly increasing", async () => {

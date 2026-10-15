@@ -45,18 +45,15 @@ test("@api complaint assignment and updates are stored server-side", async ({ pa
   await expect(card(page, "Hi, is my laundry ready?").getByText("In Progress")).toBeVisible();
 });
 
-test("@api customer signs in with the PIN checked by the server", async ({ page }) => {
+test("@api customer signs in with email + PIN checked by the server", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: /sign in|log in|my account|track/i }).first().click().catch(() => {});
-  // The account screen has a contact + PIN form; a wrong PIN is rejected, the right one is accepted.
-  const contact = page.locator("#login-contact, input[type=tel]").first();
-  const pin = page.locator("#login-pin");
-  if (!(await pin.isVisible().catch(() => false))) test.skip(true, "account sign-in entry point not found from the landing page");
-  await contact.fill("0917 111 2222");
-  await pin.fill("0000");
-  await page.getByRole("button", { name: /sign in|log in/i }).click();
-  await expect(page.getByText(/don't match/i)).toBeVisible();
-  await pin.fill("1234");
-  await page.getByRole("button", { name: /sign in|log in/i }).click();
-  await expect(page.getByText(/don't match/i)).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Continue with Google" })).toBeDisabled(); // not set up on the server
+  await page.getByLabel("Email").fill("ana.reyes@example.com");
+  await page.getByLabel("4-digit PIN").fill("0000");
+  await page.getByRole("button", { name: "Log in", exact: true }).click();
+  await expect(page.getByText(/don't match/)).toBeVisible();
+
+  await page.getByLabel("4-digit PIN").fill("1234");
+  await page.getByRole("button", { name: "Log in", exact: true }).click();
+  await expect(page.getByText(/Ready for laundry day/)).toBeVisible();
 });

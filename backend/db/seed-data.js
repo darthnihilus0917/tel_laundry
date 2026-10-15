@@ -15,6 +15,7 @@ export const STAFF = [
 
 const person = (key, firstName, lastName, contact, address, deliveryAddress, createdHoursAgo) => ({
   key, firstName, lastName, contact, pin: "1234", address, deliveryAddress,
+  email: `${firstName}.${lastName}`.toLowerCase().replace(/\s+/g, "") + "@example.com",
   area: address.subdivision, createdTs: ago(createdHoursAgo),
 });
 

@@ -114,7 +114,8 @@ export const REJECT_RECEIPT_REASONS = [
 
 const addr = (unit, subdivision, barangay, city, landmark = "") => ({ unit, subdivision, barangay, city, landmark });
 const person = (id, firstName, lastName, contact, address, deliveryAddress, createdHoursAgo) => ({
-  id, firstName, lastName, name: `${firstName} ${lastName}`, contact, pin: "1234",
+  id, firstName, lastName, name: `${firstName} ${lastName}`, contact, pin: "1234", authProvider: "email",
+  email: `${firstName}.${lastName}`.toLowerCase().replace(/\s+/g, "") + "@example.com",
   address, deliveryAddress, area: address.subdivision, branchId: DEFAULT_BRANCH, createdTs: ago(createdHoursAgo),
 });
 

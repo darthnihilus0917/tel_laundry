@@ -4,7 +4,7 @@ const dateOnly = (d) => (d instanceof Date ? d.toISOString().slice(0, 10) : d);
 
 export const customerOut = (r) => ({
   id: r.id, branchId: r.branch_id, firstName: r.first_name, lastName: r.last_name,
-  name: `${r.first_name} ${r.last_name}`, contact: r.contact,
+  name: `${r.first_name} ${r.last_name}`, contact: r.contact, email: r.email, authProvider: r.auth_provider,
   address: r.address, deliveryAddress: r.delivery_address, area: r.area,
   createdAt: iso(r.created_at),
 });

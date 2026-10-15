@@ -303,33 +303,17 @@ function ProfileView({ customer, onSave, onBack }) {
   );
 }
 
-export default function CustomerAccount({ customers, orders, addOrder, cancelOrder, complaints, addComplaint, updateCustomer, payOrder, onSignIn, onGoToRegister, onBack }) {
-  const [contactInput, setContactInput] = useState("");
-  const [pinInput, setPinInput] = useState("");
-  const [loginError, setLoginError] = useState(false);
-  const [customerId, setCustomerId] = useState(null);
+export default function CustomerAccount({ customers, orders, addOrder, cancelOrder, complaints, addComplaint, updateCustomer, payOrder, signedInCustomerId, onBack }) {
+  // The splash screen handles log in / register; this screen is only reached with a signed-in customer.
+  const [customerId, setCustomerId] = useState(signedInCustomerId ?? null);
   const [view, setView] = useState("orders"); // orders | schedule | profile
   const [rebook, setRebook] = useState(null);
 
   const customer = customers.find((c) => c.id === customerId) || null;
 
-  async function signIn(e) {
-    e.preventDefault();
-    if (onSignIn) {
-      // server-checked sign-in (api mode)
-      const found = await onSignIn(contactInput, pinInput);
-      if (found) { setCustomerId(found.id); setLoginError(false); setView("orders"); }
-      else setLoginError(true);
-      return;
-    }
-    const digits = contactInput.replace(/\s/g, "");
-    const found = customers.find((c) => c.contact.replace(/\s/g, "") === digits && c.pin === pinInput);
-    if (found) { setCustomerId(found.id); setLoginError(false); setView("orders"); }
-    else setLoginError(true);
-  }
-
   function logOut() {
-    setCustomerId(null); setContactInput(""); setPinInput(""); setView("orders");
+    setCustomerId(null); setView("orders");
+    onBack?.();
   }
 
   function schedule(fields) {
@@ -367,50 +351,17 @@ export default function CustomerAccount({ customers, orders, addOrder, cancelOrd
 
       <div className="mx-auto max-w-3xl px-4 py-8 sm:py-12">
         {!customer ? (
-          <>
-            <div className="text-center">
-              <h1 className="text-2xl font-medium sm:text-3xl">My Account</h1>
-              <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">Sign in with your contact number and 4-digit PIN.</p>
-            </div>
-
-            <form onSubmit={signIn} className="mx-auto mt-6 max-w-sm space-y-3 rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
-              <div>
-                <label htmlFor="login-contact" className="text-xs font-medium text-slate-600">Contact number</label>
-                <div className="relative mt-1">
-                  <Search size={15} className="absolute left-2.5 top-3 text-slate-400" />
-                  <input
-                    id="login-contact" inputMode="tel" value={contactInput}
-                    onChange={(e) => { setContactInput(e.target.value); setLoginError(false); }}
-                    placeholder="0917 000 0000"
-                    className={`w-full rounded-md border py-2.5 pl-8 pr-3 text-sm ${loginError ? "border-rose-300" : "border-slate-200"}`}
-                  />
-                </div>
-              </div>
-              <div>
-                <label htmlFor="login-pin" className="text-xs font-medium text-slate-600">4-digit PIN</label>
-                <input
-                  id="login-pin" type="password" inputMode="numeric" maxLength={4} autoComplete="current-password"
-                  value={pinInput} onChange={(e) => { setPinInput(e.target.value.replace(/\D/g, "")); setLoginError(false); }}
-                  placeholder="••••"
-                  className={`mt-1 w-full rounded-md border px-3 py-2.5 text-sm tracking-widest ${loginError ? "border-rose-300" : "border-slate-200"}`}
-                />
-              </div>
-              {loginError && (
-                <p className="text-xs text-rose-600">
-                  That contact number and PIN don't match. <button type="button" onClick={onGoToRegister} className="underline">Register as a new customer</button> instead?
-                </p>
-              )}
-              <button type="submit" className="w-full rounded-md bg-teal-600 px-3 py-2.5 text-sm font-medium text-white hover:bg-teal-700">Sign in</button>
-              <button type="button" onClick={onBack} className="w-full text-center text-xs text-slate-500 hover:text-slate-700">← Back to registration</button>
-            </form>
-          </>
+          <div className="text-center text-sm text-slate-500">
+            Your session has ended.{" "}
+            <button onClick={onBack} className="font-medium text-teal-700 underline">Log in again</button>
+          </div>
         ) : view === "profile" ? (
           <ProfileView customer={customer} onSave={(patch) => updateCustomer(customer.id, patch)} onBack={() => setView("orders")} />
         ) : (
           <>
             <div>
               <h1 className="text-xl font-medium">Ready for laundry day, {customer.firstName.charAt(0) + customer.firstName.slice(1).toLowerCase()}?</h1>
-              <p className="mt-1 flex items-center gap-1 text-xs text-slate-500"><Phone size={12} />{customer.contact}</p>
+              <p className="mt-1 flex items-center gap-1 text-xs text-slate-500"><Phone size={12} />{customer.contact}{customer.email && ` · ${customer.email}`}</p>
               <p className="mt-0.5 flex items-start gap-1 text-xs text-slate-500"><MapPin size={12} className="mt-0.5 shrink-0" />{pickupAddressOf(customer)}</p>
             </div>
 

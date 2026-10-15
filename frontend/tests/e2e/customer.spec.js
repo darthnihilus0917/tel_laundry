@@ -6,17 +6,93 @@ const AFTER_CUTOFF = Date.UTC(2026, 7, 8, 11, 0); // 7:00 PM Manila
 const BEFORE_1PM = Date.UTC(2026, 7, 8, 2, 0); // 10:00 AM Manila
 const MID_AFTERNOON = Date.UTC(2026, 7, 8, 6, 30); // 2:30 PM Manila
 
-async function signIn(page, contact = "0917 111 2222", pin = "1234") {
+// Splash screen: email + 4-digit PIN on the "Log in" tab (seed customers use first.last@example.com).
+async function signIn(page, email = "ana.reyes@example.com", pin = "1234") {
   await page.goto("/");
-  await page.getByRole("button", { name: /Already a customer/ }).click();
-  await page.getByLabel("Contact number").fill(contact);
+  await page.getByLabel("Email").fill(email);
   await page.getByLabel("4-digit PIN").fill(pin);
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.getByRole("button", { name: "Log in", exact: true }).click();
 }
+
+test("splash: brand on top, log in / register below with Google or email + PIN", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "The Empress Laundry" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Log in" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("button", { name: "Continue with Google" })).toBeVisible();
+  await expect(page.getByLabel("Email")).toBeVisible();
+  await expect(page.getByLabel("4-digit PIN")).toBeVisible();
+
+  await page.getByRole("tab", { name: "Register" }).click();
+  await expect(page.getByRole("button", { name: "Sign up with Google" })).toBeVisible();
+  await expect(page.getByLabel("Create 4-digit PIN")).toBeVisible();
+  await expect(page.getByLabel("Confirm PIN")).toBeVisible();
+});
+
+test("email registration validates, then collects the profile", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("tab", { name: "Register" }).click();
+
+  await page.getByLabel("Email").fill("not-an-email");
+  await page.getByLabel("Create 4-digit PIN").fill("4321");
+  await page.getByLabel("Confirm PIN").fill("1111");
+  await page.getByRole("button", { name: /Create account/ }).click();
+  await expect(page.getByText("Enter a valid email address")).toBeVisible();
+
+  await page.getByLabel("Email").fill("ana.reyes@example.com"); // already registered
+  await page.getByLabel("Confirm PIN").fill("4321");
+  await page.getByRole("button", { name: /Create account/ }).click();
+  await expect(page.getByText(/already registered/)).toBeVisible();
+
+  await page.getByLabel("Email").fill("pat.new@example.com");
+  await page.getByLabel("Confirm PIN").fill("9999");
+  await page.getByRole("button", { name: /Create account/ }).click();
+  await expect(page.getByText("PINs don't match")).toBeVisible();
+
+  await page.getByLabel("Confirm PIN").fill("4321");
+  await page.getByRole("button", { name: /Create account/ }).click();
+  await expect(page.getByText("Signing up as")).toContainText("pat.new@example.com");
+  await expect(page.getByLabel("4-digit PIN")).toHaveCount(0); // the PIN was already set on the splash
+});
+
+test("Google sign-up: account chooser, then profile step with the name pre-filled", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("tab", { name: "Register" }).click();
+  await page.getByRole("button", { name: "Sign up with Google" }).click();
+  await expect(page.getByRole("dialog", { name: /Choose a Google account/ })).toBeVisible();
+  await page.getByRole("button", { name: /maria.santos@gmail.com/ }).click();
+
+  await expect(page.getByText("Signing up as")).toContainText("maria.santos@gmail.com");
+  await expect(page.getByLabel("First name")).toHaveValue("MARIA");
+  await page.getByLabel("Contact number").fill("0933 000 1111");
+  await page.locator("#reg-pickup-unit").fill("Unit 9");
+  await page.locator("#reg-pickup-subdivision").fill("Gmail Heights");
+  await page.locator("#reg-pickup-barangay").fill("Central");
+  await page.locator("#reg-pickup-city").fill("Pasig");
+  await page.getByRole("checkbox").check();
+  await page.getByRole("button", { name: /Finish registration/ }).click();
+  await expect(page.getByText("You're registered")).toBeVisible();
+  await page.getByRole("button", { name: /Go to my Account/ }).click();
+  await expect(page.getByText("UNIT 9", { exact: false })).toBeVisible();
+});
+
+test("a refresh keeps the customer signed in; log out returns to the splash", async ({ page }) => {
+  await signIn(page);
+  await expect(page.getByText(/Ready for laundry day/)).toBeVisible();
+  await page.reload();
+  await expect(page.getByText(/Ready for laundry day/)).toBeVisible();
+  await page.getByRole("button", { name: /Log Out/ }).click();
+  await expect(page.getByRole("tab", { name: "Log in" })).toBeVisible();
+});
 
 test("customer landing hides staff entry and registers with split name, 5-box address and PIN", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("button", { name: /staff/i })).toHaveCount(0);
+
+  await page.getByRole("tab", { name: "Register" }).click();
+  await page.getByLabel("Email").fill("maria.clara@example.com");
+  await page.getByLabel("Create 4-digit PIN").fill("4321");
+  await page.getByLabel("Confirm PIN").fill("4321");
+  await page.getByRole("button", { name: /Create account/ }).click();
 
   await page.getByLabel("First name").fill("Maria");
   await page.getByLabel("Last name").fill("Clara");
@@ -25,23 +101,19 @@ test("customer landing hides staff entry and registers with split name, 5-box ad
   await page.locator("#reg-pickup-subdivision").fill("Aster Village");
   await page.locator("#reg-pickup-barangay").fill("Sampaguita");
   await page.locator("#reg-pickup-city").fill("Manila");
-  await page.getByLabel("4-digit PIN").fill("4321");
-  await page.getByRole("button", { name: /^Register/ }).click();
+  await page.getByRole("button", { name: /Finish registration/ }).click();
   await expect(page.getByText("Please confirm to continue")).toBeVisible();
   await page.getByRole("checkbox").check();
-  await page.getByRole("button", { name: /^Register/ }).click();
+  await page.getByRole("button", { name: /Finish registration/ }).click();
   await expect(page.getByText("You're registered")).toBeVisible();
 
   // names/addresses are stored in capitals
   await page.getByRole("button", { name: /Go to my Account/ }).click();
-  await page.getByLabel("Contact number").fill("0999 123 4567");
-  await page.getByLabel("4-digit PIN").fill("4321");
-  await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page.getByText("UNIT 5, ASTER ST.", { exact: false })).toBeVisible();
 });
 
 test("wrong PIN is rejected", async ({ page }) => {
-  await signIn(page, "0917 111 2222", "0000");
+  await signIn(page, "ana.reyes@example.com", "0000");
   await expect(page.getByText(/don't match/)).toBeVisible();
 });
 
@@ -168,11 +240,7 @@ test("lobby customer pays via GCash after the rider sets the final amount; admin
   await job.getByRole("button", { name: "Save amount" }).click();
 
   // 2) customer sees the final amount and pays
-  await page.goto("/");
-  await page.getByRole("button", { name: /Already a customer/ }).click();
-  await page.getByLabel("Contact number").fill("0918 222 3333");
-  await page.getByLabel("4-digit PIN").fill("1234");
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await signIn(page, "mark.santos@example.com", "1234");
   await expect(page.getByText("₱235 • Final • Pay before delivery • GCash")).toBeVisible();
   await page.getByRole("button", { name: "Pay via GCash" }).click();
   await expect(page.getByText("Please settle the final amount of ₱235")).toBeVisible();

@@ -43,9 +43,9 @@ try {
     const customerIds = {};
     for (const cu of CUSTOMERS) {
       customerIds[cu.key] = (await c.query(
-        `insert into customers (first_name, last_name, contact, pin_hash, address, delivery_address, area, created_at)
-         values ($1,$2,$3,$4,$5,$6,$7,$8) returning id`,
-        [cu.firstName, cu.lastName, cu.contact, await hashPin(cu.pin), cu.address, cu.deliveryAddress,
+        `insert into customers (first_name, last_name, contact, email, pin_hash, address, delivery_address, area, created_at)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9) returning id`,
+        [cu.firstName, cu.lastName, cu.contact, cu.email, await hashPin(cu.pin), cu.address, cu.deliveryAddress,
           cu.area, at(cu.createdTs)])).rows[0].id;
     }
 
