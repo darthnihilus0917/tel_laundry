@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ArrowRight, Search, ChevronDown, ChevronUp, XCircle } from "lucide-react";
 import Badge from "./Badge.jsx";
 import { RIDERS, STATUS_COLOR } from "../data/seedData.js";
-import { nextStatus, personName } from "../utils/helpers.js";
+import { nextStatus, personName, byAge, ageLabel } from "../utils/helpers.js";
 
 // Group the granular status flow into a handful of macro stages so the board
 // reads as ~4 wide columns instead of 9 narrow ones — each card still shows
@@ -26,7 +26,7 @@ function OrderCard({ o, customers, advanceOrder, assignRider }) {
     <div className="rounded-lg border border-slate-200 bg-white p-3 text-sm shadow-sm">
       <div className="flex items-center justify-between gap-2">
         <span className="min-w-0 truncate font-medium">{personName(customers, o.customerId)}</span>
-        <span className="shrink-0 text-xs text-slate-400">{o.id}</span>
+        <span className="shrink-0 text-xs text-slate-400">{o.id} · {ageLabel(o.createdTs)}</span>
       </div>
       <div className="mt-1.5 flex flex-wrap gap-1">
         <Badge className={STATUS_COLOR[o.status]}>{o.status}</Badge>
@@ -49,7 +49,8 @@ function OrderCard({ o, customers, advanceOrder, assignRider }) {
         </select>
       )}
       {o.riderId && <div className="mt-1.5 text-xs text-slate-500">Rider: {personName(RIDERS, o.riderId)}</div>}
-      {nextStatus(o.status) && o.status !== "New Request" && (
+      {o.status === "Picked Up" && !o.weight && <div className="mt-2 text-xs text-slate-400">Waiting for attendant to weigh</div>}
+      {nextStatus(o.status) && o.status !== "New Request" && o.status !== "Picked Up" && (
         <button
           onClick={() => advanceOrder(o.id)}
           className="mt-2 flex w-full items-center justify-center gap-1 rounded-md bg-teal-600 px-2 py-2 text-xs font-medium text-white hover:bg-teal-700"
@@ -70,7 +71,7 @@ export default function DispatchBoard({ orders, customers, advanceOrder, assignR
   const cancelledOrders = orders.filter((o) => o.status === "Cancelled" && matchesSearch(o, customers, search));
 
   function ordersFor(group) {
-    return activeOrders.filter((o) => group.statuses.includes(o.status));
+    return activeOrders.filter((o) => group.statuses.includes(o.status)).sort(byAge);
   }
 
   return (

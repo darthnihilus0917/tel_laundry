@@ -12,7 +12,8 @@ import Toast from "./components/Toast.jsx";
 import CustomerPortal from "./components/CustomerPortal.jsx";
 import CustomerAccount from "./components/CustomerAccount.jsx";
 import { SEED_CUSTOMERS, SEED_ORDERS, SEED_COMPLAINTS } from "./data/seedData.js";
-import { nextStatus } from "./utils/helpers.js";
+import Attendant from "./components/Attendant.jsx";
+import { nextStatus, advanceBlockReason } from "./utils/helpers.js";
 
 export default function App() {
   const [customers, setCustomers] = useState(SEED_CUSTOMERS);
@@ -28,18 +29,22 @@ export default function App() {
     setTimeout(() => setToastMessage(null), 3000);
   }
 
-  function advanceOrder(orderId) {
+  function advanceOrder(orderId, patch = {}) {
+    const order = orders.find((o) => o.id === orderId);
+    if (!order) return;
+    const blocked = advanceBlockReason({ ...order, ...patch });
+    if (blocked) return showToast(blocked);
     setOrders((prev) =>
       prev.map((o) => {
         if (o.id !== orderId) return o;
         const ns = nextStatus(o.status);
-        if (!ns) return o;
-        const patch = { status: ns };
-        if (ns === "Payment Verification") patch.paymentStatus = "Pending Verification";
-        if (ns === "Completed") patch.paymentStatus = "Verified";
-        return { ...o, ...patch };
+        return ns ? { ...o, ...patch, status: ns } : o;
       })
     );
+  }
+
+  function updateOrder(orderId, patch) {
+    setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, ...patch } : o)));
   }
 
   function assignRider(orderId, riderId) {
@@ -49,7 +54,13 @@ export default function App() {
   }
 
   function markVerified(orderId) {
-    setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, paymentStatus: "Verified" } : o)));
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.id === orderId
+          ? { ...o, paymentStatus: "Verified", status: o.status === "Payment Verification" ? "Completed" : o.status }
+          : o
+      )
+    );
   }
 
   function cancelOrder(orderId) {
@@ -58,7 +69,7 @@ export default function App() {
 
   function addOrder(order, newCustomer) {
     if (newCustomer) setCustomers((prev) => [...prev, newCustomer]);
-    setOrders((prev) => [order, ...prev]);
+    setOrders((prev) => [{ createdTs: Date.now(), ...order }, ...prev]);
   }
 
   function registerCustomer(customer, opts) {
@@ -72,7 +83,7 @@ export default function App() {
   }
 
   function addComplaint(ticket) {
-    setComplaints((prev) => [ticket, ...prev]);
+    setComplaints((prev) => [{ createdTs: Date.now(), ...ticket }, ...prev]);
   }
 
   function updateComplaint(id, patch) {
@@ -128,7 +139,8 @@ export default function App() {
             <CustomerRegistration customers={customers} registerCustomer={registerCustomer} goToNewOrderFor={goToNewOrderFor} />
           )}
           {tab === "customers" && <Customers customers={customers} orders={orders} goToRegister={() => setTab("register")} />}
-          {tab === "rider" && <RiderView orders={orders} customers={customers} advanceOrder={advanceOrder} setOrders={setOrders} />}
+          {tab === "attendant" && <Attendant orders={orders} customers={customers} advanceOrder={advanceOrder} updateOrder={updateOrder} />}
+          {tab === "rider" && <RiderView orders={orders} customers={customers} advanceOrder={advanceOrder} updateOrder={updateOrder} />}
           {tab === "payments" && <Payments orders={orders} customers={customers} markVerified={markVerified} />}
           {tab === "complaints" && (
             <Complaints complaints={complaints} orders={orders} customers={customers} addComplaint={addComplaint} updateComplaint={updateComplaint} />

@@ -1,7 +1,7 @@
 import { Clock, Package, Truck, MessageSquareWarning, Wallet, AlertTriangle } from "lucide-react";
 import StatCard from "./StatCard.jsx";
 import Badge from "./Badge.jsx";
-import { personName } from "../utils/helpers.js";
+import { personName, ageHours, ageLabel } from "../utils/helpers.js";
 
 export default function Dashboard({ orders, complaints, customers, setTab }) {
   const pendingPickup = orders.filter((o) => ["New Request", "Assigned for Pickup"].includes(o.status)).length;
@@ -10,6 +10,23 @@ export default function Dashboard({ orders, complaints, customers, setTab }) {
   const openTickets = complaints.filter((t) => t.status !== "Resolved").length;
   const pendingPayments = orders.filter((o) => o.paymentStatus === "Pending Verification").length;
   const delayed = orders.filter((o) => o.delay).length;
+
+  // Exception queue (FR-7.2): things that need the owner, not routine work.
+  const TICKET_SLA_HOURS = 4;
+  const exceptions = [
+    ...complaints
+      .filter((t) => t.status !== "Resolved" && ageHours(t.createdTs) > TICKET_SLA_HOURS)
+      .map((t) => ({ key: "t" + t.id, text: `Ticket open ${ageLabel(t.createdTs)} (over ${TICKET_SLA_HOURS}h SLA): ${t.message}` })),
+    ...orders
+      .filter((o) => o.paymentStatus === "Pending Verification" && ageHours(o.paymentTs) > 24)
+      .map((o) => ({ key: "p" + o.id, text: `Payment for ${o.id} pending verification ${ageLabel(o.paymentTs)}` })),
+    ...orders
+      .filter((o) => o.delay && !o.delay.notified)
+      .map((o) => ({ key: "d" + o.id, text: `${o.id} delayed — customer not yet notified` })),
+    ...orders
+      .filter((o) => ["Ready for Delivery", "Out for Delivery"].includes(o.status) && ageHours(o.createdTs) > 48)
+      .map((o) => ({ key: "b" + o.id, text: `${o.id} delivery backlog — ordered ${ageLabel(o.createdTs)}` })),
+  ];
 
   return (
     <div>
@@ -23,6 +40,14 @@ export default function Dashboard({ orders, complaints, customers, setTab }) {
         <StatCard label="Open complaints" value={openTickets} icon={MessageSquareWarning} tone="rose" />
         <StatCard label="Payments to verify" value={pendingPayments} icon={Wallet} tone="purple" />
         <StatCard label="Delayed orders" value={delayed} icon={AlertTriangle} tone="amber" />
+      </div>
+
+      <div className="mt-6 rounded-xl border border-rose-200 bg-rose-50 p-4">
+        <h2 className="flex items-center gap-1.5 text-sm font-medium text-rose-800"><AlertTriangle size={14} /> Exceptions ({exceptions.length})</h2>
+        {exceptions.length === 0 && <div className="mt-2 text-sm text-rose-700/70">Nothing needs your attention.</div>}
+        <ul className="mt-2 space-y-1 text-sm text-rose-800">
+          {exceptions.map((e) => <li key={e.key}>• {e.text}</li>)}
+        </ul>
       </div>
 
       <div className="mt-6 grid gap-4 md:grid-cols-2">

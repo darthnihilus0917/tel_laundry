@@ -1,6 +1,6 @@
 import Badge from "./Badge.jsx";
 import { PACKAGE_PRICE } from "../data/seedData.js";
-import { personName } from "../utils/helpers.js";
+import { personName, ageLabel, ageHours } from "../utils/helpers.js";
 
 export default function Payments({ orders, customers, markVerified }) {
   const relevant = orders.filter((o) => o.paymentStatus !== "Unpaid");
@@ -24,7 +24,7 @@ export default function Payments({ orders, customers, markVerified }) {
                 {o.paymentStatus}
               </Badge>
             </div>
-            <div className="mt-1 text-slate-500">{o.id} · {o.paymentMethod}{o.gcashRef ? ` · •••${o.gcashRef}` : ""}</div>
+            <div className="mt-1 text-slate-500">{o.id} · {o.paymentMethod}{o.gcashRef ? ` · •••${o.gcashRef}` : ""}{o.paymentStatus === "Pending Verification" && o.paymentTs ? ` · logged ${ageLabel(o.paymentTs)}${ageHours(o.paymentTs) > 24 ? " ⚠ overdue" : ""}` : ""}</div>
             <div className="mt-1 font-medium">₱{o.price ?? PACKAGE_PRICE[o.package]}</div>
             {o.paymentStatus === "Pending Verification" && (
               <button onClick={() => markVerified(o.id)} className="mt-2 w-full rounded-md bg-slate-800 px-2 py-2 text-xs font-medium text-white hover:bg-slate-900">

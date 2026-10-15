@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   LayoutDashboard, PackagePlus, Truck, Users, Wallet, MessageSquareWarning,
-  Bike, Package, Menu, X, UserPlus, Globe,
+  Bike, Package, Scale, Menu, X, UserPlus, Globe,
 } from "lucide-react";
 
 export const NAV_ITEMS = [
@@ -10,6 +10,7 @@ export const NAV_ITEMS = [
   { id: "newOrder", label: "New order", icon: PackagePlus },
   { id: "register", label: "Register customer", icon: UserPlus },
   { id: "customers", label: "Customers", icon: Users },
+  { id: "attendant", label: "Attendant", icon: Scale },
   { id: "rider", label: "Rider view", icon: Bike },
   { id: "payments", label: "Payments", icon: Wallet },
   { id: "complaints", label: "Complaints", icon: MessageSquareWarning },
